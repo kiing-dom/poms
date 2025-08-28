@@ -1,0 +1,19 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories (if using vendoring)
+vendor/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+.DS_Store
