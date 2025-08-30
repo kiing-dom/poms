@@ -18,7 +18,6 @@ type Session struct {
 
 func (s *Session) StartWork() {
 	s.IsWork = true
-	s.Duration = 25 * time.Minute
 	s.IsCompleted = false
 	s.SessionNumber++
 	s.StartTime = time.Now()
@@ -27,7 +26,6 @@ func (s *Session) StartWork() {
 
 func (s *Session) StartBreak() {
 	s.IsWork = false
-	s.Duration = 5 * time.Minute
 	s.IsCompleted = false
 	s.IsLongBreak = false
 	s.StartTime = time.Now()
