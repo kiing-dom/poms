@@ -57,6 +57,8 @@ func NewModel(session *session.Session) Model {
 		session: session,
 		timer:   nil,
 		running: false,
+		width:   80,
+		height:  24,
 	}
 }
 
@@ -117,8 +119,8 @@ func (m Model) View() string {
 	content := fmt.Sprintf("%s\n\n%s\n\n%s\n\n%s\n\n%s",
 		title, status, progress, stats, help)
 
-	return lipgloss.Place(m.width, m.height,
-		lipgloss.Center, lipgloss.Center, content)
+	return content
+	// TODO: figure out how to add tea.Place back without duplication bug
 }
 
 type tickMsg time.Time
