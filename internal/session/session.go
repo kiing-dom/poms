@@ -17,9 +17,10 @@ type Session struct {
 }
 
 func (s *Session) StartWork() {
-	s.IsWork = true
+	if !s.IsWork || s.IsCompleted {
+		s.SessionNumber++
+	}
 	s.IsCompleted = false
-	s.SessionNumber++
 	s.StartTime = time.Now()
 	s.EndTime = s.StartTime.Local().Add(s.Duration)
 }
