@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kiing-dom/poms/internal/cli"
 	"github.com/kiing-dom/poms/internal/session"
 	"github.com/kiing-dom/poms/internal/timers"
+	tea "github.com/charmbracelet/bubbletea"
 	tui "github.com/kiing-dom/poms/internal/tui"
 )
 
