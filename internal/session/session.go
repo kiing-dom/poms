@@ -20,6 +20,7 @@ func (s *Session) StartWork() {
 	if !s.IsWork || s.IsCompleted {
 		s.SessionNumber++
 	}
+	s.IsWork = true
 	s.IsCompleted = false
 	s.StartTime = time.Now()
 	s.EndTime = s.StartTime.Local().Add(s.Duration)
