@@ -28,7 +28,7 @@ func main() {
 func StartTUI(workDuration, breakDuration time.Duration) error {
 	s := &session.Session{Duration: workDuration}
 	m := tui.NewModel(s)
-	p := tea.NewProgram(&m)
+	p := tea.NewProgram(&m, tea.WithAltScreen())
 	_, err := p.Run()
 	return err
 }
