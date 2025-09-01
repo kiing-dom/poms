@@ -17,3 +17,4 @@ vendor/
 .idea/
 *.swp
 .DS_Store
+.github

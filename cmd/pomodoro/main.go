@@ -26,7 +26,7 @@ func main() {
 }
 
 func StartTUI(workDuration, breakDuration time.Duration) error {
-	s := &session.Session{Duration: workDuration}
+	s := &session.Session{WorkDuration: workDuration, BreakDuration: breakDuration}
 	m := tui.NewModel(s)
 	p := tea.NewProgram(&m, tea.WithAltScreen())
 	_, err := p.Run()
@@ -36,17 +36,17 @@ func StartTUI(workDuration, breakDuration time.Duration) error {
 func runCLIMode(config cli.Config) {
 	s := &session.Session{}
 
-	s.Duration = time.Duration(config.WorkMinutes) * time.Minute
+	s.WorkDuration = time.Duration(config.WorkMinutes) * time.Minute
 	s.StartWork()
 	fmt.Println("Starting Work Session:", s.SessionNumber)
-	timers.Countdown(s.Duration, "Work")
+	timers.Countdown(s.WorkDuration, "Work")
 	s.EndSession()
 	fmt.Println("Work Session Complete. Good Job!")
 
-	s.Duration = time.Duration(config.BreakMinutes) * time.Minute
+	s.BreakDuration = time.Duration(config.BreakMinutes) * time.Minute
 	s.StartBreak()
 	fmt.Println("Starting Break Session:", s.SessionNumber)
-	timers.Countdown(s.Duration, "Break")
+	timers.Countdown(s.BreakDuration, "Break")
 	s.EndSession()
 	fmt.Println("Break over. Back to Work!")
 

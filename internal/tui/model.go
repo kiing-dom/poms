@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kiing-dom/poms/internal/audio"
 	"github.com/kiing-dom/poms/internal/session"
 )
 
@@ -102,6 +103,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.running && m.session.IsSessionActive() {
 			return m, m.startTimer()
 		}
+
+		if m.running && m.session.IsWork {
+			audio.PlayNotification("assets/sounds/timer-beep.mp3")
+			m.session.StartBreak()
+			m.running = true
+			return m, m.startTimer()
+		}
 		m.running = false
 		return m, nil
 	}
@@ -155,14 +163,15 @@ func (m Model) renderStatus() string {
 }
 
 func (m Model) renderProgress() string {
-	if !m.running || m.session.Duration == 0 {
+	if !m.running || (m.session.IsWork && m.session.WorkDuration == 0) || (!m.session.IsWork && m.session.BreakDuration == 0) {
 		return ""
 	}
 
 	elapsed := time.Since(m.session.StartTime)
-	remaining := max(m.session.Duration-elapsed, 0)
+	currentDuration := m.session.GetCurrentDuration()
+	remaining := max(currentDuration-elapsed, 0)
 
-	progress := float64(elapsed) / float64(m.session.Duration)
+	progress := float64(elapsed) / float64(currentDuration)
 	if progress > 1 {
 		progress = 1
 	}

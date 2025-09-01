@@ -7,7 +7,8 @@ import (
 
 type Session struct {
 	IsWork bool
-	Duration time.Duration
+	WorkDuration time.Duration
+	BreakDuration time.Duration
 	TotalPomodoros int
 	IsCompleted bool
 	StartTime time.Time
@@ -23,7 +24,7 @@ func (s *Session) StartWork() {
 	s.IsWork = true
 	s.IsCompleted = false
 	s.StartTime = time.Now()
-	s.EndTime = s.StartTime.Local().Add(s.Duration)
+	s.EndTime = s.StartTime.Local().Add(s.WorkDuration)
 }
 
 func (s *Session) StartBreak() {
@@ -31,7 +32,7 @@ func (s *Session) StartBreak() {
 	s.IsCompleted = false
 	s.IsLongBreak = false
 	s.StartTime = time.Now()
-	s.EndTime = s.StartTime.Local().Add(s.Duration)
+	s.EndTime = s.StartTime.Local().Add(s.BreakDuration)
 }
 
 func (s *Session) EndSession() {
@@ -59,7 +60,15 @@ func (s *Session) IsSessionCompleted() bool {
 
 func (s *Session) Summary() {
 	fmt.Println("Session Summary:")
-	fmt.Println("Session Duration:", s.Duration)
+	fmt.Println("Session Duration:", s.WorkDuration + s.BreakDuration)
 	fmt.Println("Session Number:", s.SessionNumber)
 	fmt.Println("Total Pomodoros:", s.TotalPomodoros)
+}
+
+func (s *Session) GetCurrentDuration() time.Duration {
+	if s.IsWork {
+		return s.WorkDuration
+	}
+
+	return s.BreakDuration
 }
