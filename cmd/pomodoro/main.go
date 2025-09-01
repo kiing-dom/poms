@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kiing-dom/poms/internal/cli"
 	"github.com/kiing-dom/poms/internal/session"
 	"github.com/kiing-dom/poms/internal/timers"
-	tea "github.com/charmbracelet/bubbletea"
 	tui "github.com/kiing-dom/poms/internal/tui"
 )
 
@@ -28,7 +28,7 @@ func main() {
 func StartTUI(workDuration, breakDuration time.Duration) error {
 	s := &session.Session{WorkDuration: workDuration, BreakDuration: breakDuration}
 	m := tui.NewModel(s)
-	p := tea.NewProgram(&m, tea.WithAltScreen())
+	p := tea.NewProgram(&m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	_, err := p.Run()
 	return err
 }
