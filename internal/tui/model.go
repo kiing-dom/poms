@@ -347,8 +347,8 @@ func (m Model) renderStats() string {
 		return ""
 	case "medium":
 		if m.width >= 35 {
-			return fmt.Sprintf("📊 Sessions: %d | Current: %d",
-				m.session.TotalPomodoros, m.session.SessionNumber)
+			return fmt.Sprintf("📊 Current: %d | Sessions: %d",
+				m.session.SessionNumber, m.session.TotalPomodoros)
 		}
 		return ""
 	default:

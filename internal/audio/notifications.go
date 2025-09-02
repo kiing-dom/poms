@@ -1,7 +1,6 @@
 package audio
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -13,15 +12,12 @@ import (
 
 // Plays a notification sound from a given file path
 func PlayNotification(path string) error {
-	fmt.Printf("Attempting to play audio file %s\n", path)
 	file, err := os.Open(path)
 	if err != nil {
-		fmt.Printf("Error opening file %v\n", err)
 		return err
 	}
 	defer file.Close()
 
-	fmt.Println("File opened successfully")
 	streamer, format, err := mp3.Decode(file)
 	if err != nil {
 		return err
