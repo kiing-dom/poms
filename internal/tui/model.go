@@ -2,9 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kiing-dom/poms/internal/audio"
@@ -51,15 +53,47 @@ type Model struct {
 	running bool
 	width   int
 	height  int
+
+	state       string
+	configIndex int
+	textInputs  []textinput.Model
+	presets     []TimePreset
+}
+
+var defaultPresets = []TimePreset{
+	{"Classic", 25, 25},
+	{"Short Focus", 15, 3},
+	{"Deep Work", 45, 15},
+	{"Flow State", 90, 20},
+	{"Custom", 0, 0}, // allow manual input
+}
+
+type TimePreset struct {
+	Name         string
+	WorkMinutes  int
+	BreakMinutes int
 }
 
 func NewModel(session *session.Session) Model {
+	workInput := textinput.New()
+	workInput.Placeholder = "25"
+	workInput.CharLimit = 3
+	workInput.Focus()
+
+	breakInput := textinput.New()
+	breakInput.Placeholder = "5"
+	breakInput.CharLimit = 3
+
 	return Model{
-		session: session,
-		timer:   nil,
-		running: false,
-		width:   0, // Start with 0 to force detection
-		height:  0, // Start with 0 to force detection
+		session:     session,
+		timer:       nil,
+		running:     false,
+		width:       0, // Start with 0 to force detection
+		height:      0, // Start with 0 to force detection
+		state:       "config",
+		configIndex: 0,
+		textInputs:  []textinput.Model{workInput, breakInput},
+		presets:     defaultPresets,
 	}
 }
 
@@ -86,21 +120,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
+		switch m.state {
+		case "config":
+			return m.updateConfig(msg)
+		case "timer":
+			return m.updateTimer(msg)
+		}
 		switch msg.String() {
-		case "w":
-			if !m.running {
-				m.session.StartWork()
-				m.running = true
-				return m, m.startTimer()
-			}
-			return m, nil
-		case "b":
-			if !m.running {
-				m.session.StartBreak()
-				m.running = true
-				return m, m.startTimer()
-			}
-			return m, nil
 		case "e":
 			m.session.EndSession()
 			m.running = false
@@ -129,68 +155,82 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *Model) updateConfig(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.configIndex > 0 {
+			m.configIndex--
+		}
+	case "down", "j":
+		if m.configIndex < len(m.presets)-1 {
+			m.configIndex++
+		}
+	case "enter":
+		return m.applyConfiguration()
+	case "tab":
+		if m.presets[m.configIndex].Name == "Custom" {
+			if m.textInputs[0].Focused() {
+				m.textInputs[0].Blur()
+				m.textInputs[1].Focus()
+			} else {
+				m.textInputs[1].Blur()
+				m.textInputs[0].Focus()
+			}
+		}
+	case "q", "ctrl + c":
+		return m, tea.Quit
+	default:
+		if m.presets[m.configIndex].Name == "Custom" {
+			var cmd tea.Cmd
+			if m.textInputs[0].Focused() {
+				m.textInputs[0], cmd = m.textInputs[0].Update(msg)
+			} else if m.textInputs[1].Focused() {
+				m.textInputs[1], cmd = m.textInputs[1].Update(msg)
+			}
+
+			return m, cmd
+		}
+	}
+	return m, nil
+}
+
+func (m *Model) updateTimer(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "c":
+		m.state = "config"
+		return m, nil
+	case "w":
+		if !m.running {
+			m.session.StartWork()
+			m.running = true
+			return m, m.startTimer()
+		}
+		return m, nil
+	case "b":
+		if !m.running {
+			m.session.StartBreak()
+			m.running = true
+			return m, m.startTimer()
+		}
+		return m, nil
+	}
+	return m, nil
+}
+
 func (m Model) View() string {
-	// Ensure we have valid dimensions before rendering
 	if m.width <= 0 || m.height <= 0 {
-		// Fallback to reasonable defaults if terminal size isn't detected
 		m.width = 80
 		m.height = 24
 	}
 
-	// Determine layout based on actual terminal size
-	layout := m.getLayoutType()
-
-	var sections []string
-
-	// Build sections based on layout
-	title := m.renderTitle()
-	if title != "" {
-		sections = append(sections, title)
-	}
-
-	status := m.renderStatus()
-	if status != "" {
-		sections = append(sections, status)
-	}
-
-	progress := m.renderProgress()
-	if progress != "" {
-		sections = append(sections, progress)
-	}
-
-	stats := m.renderStats()
-	if stats != "" {
-		sections = append(sections, stats)
-	}
-
-	help := m.renderHelp()
-	if help != "" {
-		sections = append(sections, help)
-	}
-
-	// Join sections with appropriate spacing based on layout
-	var content string
-	switch layout {
-	case "minimal":
-		content = lipgloss.JoinVertical(lipgloss.Left, sections...)
-	case "compact":
-		content = lipgloss.JoinVertical(lipgloss.Left, sections...)
+	switch m.state {
+	case "config":
+		return m.renderConfig()
+	case "timer":
+		return m.renderTimer()
 	default:
-		// Add more spacing for larger screens
-		content = strings.Join(sections, "\n\n")
+		return m.renderConfig()
 	}
-
-	// Only use Place if we have reliable dimensions and enough space
-	contentWidth := lipgloss.Width(content)
-	contentHeight := lipgloss.Height(content)
-
-	if m.width > 0 && m.height > 0 &&
-		contentWidth <= m.width && contentHeight <= m.height &&
-		layout != "minimal" {
-		content = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
-	}
-
-	return content
 }
 
 func (m Model) getLayoutType() string {
@@ -234,24 +274,24 @@ func (m Model) renderStatus() string {
 	if m.running {
 		if m.session.IsWork {
 			if layout == "minimal" || layout == "compact" {
-				status = "WORK"
+				status = "W"
 			} else {
-				status = "👷🏾 WORKING..."
+				status = "WORKING..."
 			}
 			statusColor = workStyle.Render(status)
 		} else {
 			if layout == "minimal" || layout == "compact" {
-				status = "BREAK"
+				status = "B"
 			} else {
-				status = "🍵 BREAK TIME"
+				status = "BREAK"
 			}
 			statusColor = breakStyle.Render(status)
 		}
 	} else {
 		if layout == "minimal" || layout == "compact" {
-			status = "IDLE"
+			status = "I"
 		} else {
-			status = "💤 IDLE"
+			status = "IDLE"
 		}
 		statusColor = idleStyle.Render(status)
 	}
@@ -353,8 +393,8 @@ func (m Model) renderStats() string {
 		return ""
 	default:
 		return fmt.Sprintf(`📊 Stats:
-	Sessions Completed: %d
-	Current Session: %d`,
+		Sessions Completed: %d
+		Current Session: %d`,
 			m.session.TotalPomodoros,
 			m.session.SessionNumber)
 	}
@@ -365,22 +405,194 @@ func (m Model) renderHelp() string {
 
 	switch layout {
 	case "minimal":
-		return "" // No help in minimal view
+		return ""
 	case "compact":
 		if m.width >= 25 {
-			return helpStyle.Render("w:Work b:Break e:End q:Quit")
+			return helpStyle.Render("w:Work b:Break c:Config e:End q:Quit")
 		}
-		return helpStyle.Render("w/b/e/q")
+		return helpStyle.Render("w/b/c/e/q")
 	case "medium":
 		if m.width >= 45 {
-			return helpStyle.Render("Controls: w-Work b-Break e-End q-Quit")
+			return helpStyle.Render("Controls: w-Work b-Break c-Config e-End q-Quit")
 		}
-		return helpStyle.Render("w:Work b:Break e:End q:Quit")
+		return helpStyle.Render("w:Work b:Break c:Config e:End q:Quit")
 	default:
 		return helpStyle.Render(`🎮 Controls:
-	w - Start Work Session
-	b - Start Break
-	e - End Current Session
-	q - Quit`)
+		w - Start Work Session
+		b - Start Break
+		c - Configure Times
+		e - End Current Session
+		q - Quit`)
 	}
+}
+
+func (m Model) renderConfig() string {
+	layout := m.getLayoutType()
+
+	var sections []string
+
+	title := titleStyle.Render("POMS CONFIG")
+	sections = append(sections, title)
+
+	presetSection := m.renderPresetOptions()
+	sections = append(sections, presetSection)
+
+	if m.presets[m.configIndex].Name == "Custom" {
+		customSection := m.renderCustomInputs()
+		sections = append(sections, customSection)
+	}
+
+	helpText := m.renderConfigHelp()
+	sections = append(sections, helpText)
+
+	content := strings.Join(sections, "\n\n")
+
+	if layout != "minimal" {
+		content = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
+	}
+	return content
+}
+
+func (m Model) renderPresetOptions() string {
+	var options []string
+
+	for i, preset := range m.presets {
+		var option string
+		if preset.Name == "Custom" {
+			option = preset.Name
+		} else {
+			option = fmt.Sprintf("%s (%dm work, %dm break)", preset.Name, preset.WorkMinutes, preset.BreakMinutes)
+		}
+
+		if i == m.configIndex {
+			option = workStyle.Render("> " + option)
+		} else {
+			option = "  " + option
+		}
+		options = append(options, option)
+	}
+
+	return strings.Join(options, "\n")
+}
+
+func (m Model) renderCustomInputs() string {
+	workLabel := "Work Duration (minutes):"
+	breakLabel := "Break Duration (minutes):"
+
+	workLine := workLabel + m.textInputs[0].View()
+	breakLine := breakLabel + m.textInputs[1].View()
+
+	return fmt.Sprintf("%s\n%s", workLine, breakLine)
+}
+
+func (m Model) renderConfigHelp() string {
+	layout := m.getLayoutType()
+
+	switch layout {
+	case "minimal":
+		return helpStyle.Render("↑↓:Select Enter:Confirm Tab:Switch q:Quit")
+	case "compact":
+		return helpStyle.Render("↑↓: Select | Enter: Confirm | Tab: Switch | q: Quit")
+	default:
+		return helpStyle.Render(`Configuration Controls:
+		↑/↓ or j/k - Navigate presets
+		Enter - Apply configuration and start timer
+		Tab - Switch between custom input fields
+		q - Quit`)
+	}
+}
+
+func (m Model) renderTimer() string {
+	// Determine layout based on actual terminal size
+	layout := m.getLayoutType()
+
+	var sections []string
+
+	// Build sections based on layout
+	title := m.renderTitle()
+	if title != "" {
+		sections = append(sections, title)
+	}
+
+	status := m.renderStatus()
+	if status != "" {
+		sections = append(sections, status)
+	}
+
+	progress := m.renderProgress()
+	if progress != "" {
+		sections = append(sections, progress)
+	}
+
+	stats := m.renderStats()
+	if stats != "" {
+		sections = append(sections, stats)
+	}
+
+	help := m.renderHelp()
+	if help != "" {
+		sections = append(sections, help)
+	}
+
+	// Join sections with appropriate spacing based on layout
+	var content string
+	switch layout {
+	case "minimal":
+		content = lipgloss.JoinVertical(lipgloss.Left, sections...)
+	case "compact":
+		content = lipgloss.JoinVertical(lipgloss.Left, sections...)
+	default:
+		// Add more spacing for larger screens
+		content = strings.Join(sections, "\n\n")
+	}
+
+	// Only use Place if we have reliable dimensions and enough space
+	contentWidth := lipgloss.Width(content)
+	contentHeight := lipgloss.Height(content)
+
+	if m.width > 0 && m.height > 0 &&
+		contentWidth <= m.width && contentHeight <= m.height &&
+		layout != "minimal" {
+		content = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
+	}
+
+	return content
+}
+
+func (m *Model) applyConfiguration() (tea.Model, tea.Cmd) {
+	preset := m.presets[m.configIndex]
+
+	var workMinutes, breakMinutes int
+	var err error
+
+	if preset.Name == "Custom" {
+		workStr := m.textInputs[0].Value()
+		breakStr := m.textInputs[1].Value()
+
+		if workStr == "" {
+			workStr = m.textInputs[0].Placeholder
+		}
+		if breakStr == "" {
+			breakStr = m.textInputs[1].Placeholder
+		}
+
+		workMinutes, err = strconv.Atoi(workStr)
+		if err != nil || workMinutes <= 0 {
+			return m, nil
+		}
+
+		breakMinutes, err = strconv.Atoi(breakStr)
+		if err != nil || breakMinutes <= 0 {
+			return m, nil
+		}
+	} else {
+		workMinutes = preset.WorkMinutes
+		breakMinutes = preset.BreakMinutes
+	}
+
+	m.session.WorkDuration = time.Duration(workMinutes) * time.Minute
+	m.session.BreakDuration = time.Duration(breakMinutes) * time.Minute
+
+	m.state = "timer"
+	return m, nil
 }
