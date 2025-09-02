@@ -118,24 +118,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.height < 5 {
 			m.height = 5
 		}
-		return m, nil
+		return m, nil	
 	case tea.KeyMsg:
 		switch m.state {
 		case "config":
 			return m.updateConfig(msg)
 		case "timer":
 			return m.updateTimer(msg)
-		}
-		switch msg.String() {
-		case "e":
-			m.session.EndSession()
-			m.running = false
-			if m.timer != nil {
-				m.timer.Stop()
-			}
-			return m, nil
-		case "q", "ctrl+c":
-			return m, tea.Quit
 		}
 	case tickMsg:
 		if m.running && m.session.IsSessionActive() {
@@ -213,6 +202,15 @@ func (m *Model) updateTimer(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.startTimer()
 		}
 		return m, nil
+	case "e":
+		m.session.EndSession()
+		m.running = false
+		if m.timer != nil {
+			m.timer.Stop()
+		}
+		return m, nil
+	case "q", "ctrl+c":
+		return m, tea.Quit
 	}
 	return m, nil
 }
