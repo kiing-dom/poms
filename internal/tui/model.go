@@ -61,7 +61,7 @@ type Model struct {
 }
 
 var defaultPresets = []TimePreset{
-	{"Classic", 25, 25},
+	{"Classic", 25, 5},
 	{"Short Focus", 15, 3},
 	{"Deep Work", 45, 15},
 	{"Flow State", 90, 20},

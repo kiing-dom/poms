@@ -1,20 +1,20 @@
 package session
 
 import (
-	"time"
 	"fmt"
+	"time"
 )
 
 type Session struct {
-	IsWork bool
-	WorkDuration time.Duration
-	BreakDuration time.Duration
+	IsWork         bool
+	WorkDuration   time.Duration
+	BreakDuration  time.Duration
 	TotalPomodoros int
-	IsCompleted bool
-	StartTime time.Time
-	EndTime time.Time
-	SessionNumber int
-	IsLongBreak bool
+	IsCompleted    bool
+	StartTime      time.Time
+	EndTime        time.Time
+	SessionNumber  int
+	IsLongBreak    bool
 }
 
 func (s *Session) StartWork() {
@@ -28,6 +28,9 @@ func (s *Session) StartWork() {
 }
 
 func (s *Session) StartBreak() {
+	if s.IsWork {
+		s.TotalPomodoros++
+	}
 	s.IsWork = false
 	s.IsCompleted = false
 	s.IsLongBreak = false
@@ -36,9 +39,6 @@ func (s *Session) StartBreak() {
 }
 
 func (s *Session) EndSession() {
-	if s.IsWork {
-		s.TotalPomodoros++
-	}
 	s.IsWork = false
 	s.IsCompleted = true
 	s.EndTime = time.Now()
@@ -60,7 +60,7 @@ func (s *Session) IsSessionCompleted() bool {
 
 func (s *Session) Summary() {
 	fmt.Println("Session Summary:")
-	fmt.Println("Session Duration:", s.WorkDuration + s.BreakDuration)
+	fmt.Println("Session Duration:", s.WorkDuration+s.BreakDuration)
 	fmt.Println("Session Number:", s.SessionNumber)
 	fmt.Println("Total Pomodoros:", s.TotalPomodoros)
 }
