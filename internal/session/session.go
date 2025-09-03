@@ -15,6 +15,9 @@ type Session struct {
 	EndTime        time.Time
 	SessionNumber  int
 	IsLongBreak    bool
+	IsPaused       bool
+	PausedAt       time.Time
+	TotalPaused    time.Duration
 }
 
 func (s *Session) StartWork() {
@@ -25,6 +28,7 @@ func (s *Session) StartWork() {
 	s.IsCompleted = false
 	s.StartTime = time.Now()
 	s.EndTime = s.StartTime.Local().Add(s.WorkDuration)
+	s.TotalPaused = 0
 }
 
 func (s *Session) StartBreak() {
@@ -36,6 +40,7 @@ func (s *Session) StartBreak() {
 	s.IsLongBreak = false
 	s.StartTime = time.Now()
 	s.EndTime = s.StartTime.Local().Add(s.BreakDuration)
+	s.TotalPaused = 0
 }
 
 func (s *Session) EndSession() {
@@ -51,7 +56,7 @@ func (s *Session) ResetSession() {
 }
 
 func (s *Session) IsSessionActive() bool {
-	return (time.Now().After(s.StartTime) && time.Now().Before(s.EndTime)) && !s.IsCompleted
+	return (time.Now().After(s.StartTime) && time.Now().Before(s.EndTime)) && !s.IsCompleted && !s.IsPaused
 }
 
 func (s *Session) IsSessionCompleted() bool {
@@ -71,4 +76,20 @@ func (s *Session) GetCurrentDuration() time.Duration {
 	}
 
 	return s.BreakDuration
+}
+
+func (s *Session) Pause() {
+	if !s.IsPaused && s.IsSessionActive() {
+		s.IsPaused = true
+		s.PausedAt = time.Now()
+	}
+}
+
+func (s *Session) Resume() {
+	if s.IsPaused {
+		pauseDuration := time.Since(s.PausedAt)
+		s.TotalPaused += pauseDuration
+		s.EndTime = s.EndTime.Add(pauseDuration)
+		s.IsPaused = false
+	}
 }

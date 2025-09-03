@@ -131,13 +131,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.startTimer()
 		}
 
-		if m.running && m.session.IsWork {
+		if m.running && m.session.IsWork && !m.session.IsPaused && time.Now().After(m.session.EndTime) {
 			audio.PlayNotification("assets/sounds/timer-beep.mp3")
 			m.session.StartBreak()
 			m.running = true
 			return m, m.startTimer()
 		}
-		m.running = false
+		if m.running && !m.session.IsPaused && time.Now().After(m.session.EndTime) {
+			m.running = false;
+		}
 		return m, nil
 	}
 
@@ -202,6 +204,15 @@ func (m *Model) updateTimer(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.startTimer()
 		}
 		return m, nil
+	case "p":
+		if m.running && !m.session.IsPaused {
+			m.session.Pause()
+		} else if m.running && m.session.IsPaused {
+			m.session.Resume()
+			if m.running && m.session.IsSessionActive() {
+				return m, m.startTimer()
+			}
+		}
 	case "e":
 		m.session.EndSession()
 		m.running = false
@@ -270,7 +281,14 @@ func (m Model) renderStatus() string {
 	layout := m.getLayoutType()
 
 	if m.running {
-		if m.session.IsWork {
+		if m.session.IsPaused {
+			if layout == "minimal" || layout == "compact" {
+				status = "P"
+			} else {
+				status = "PAUSED"
+			}
+			statusColor = idleStyle.Render(status)
+		} else if m.session.IsWork {
 			if layout == "minimal" || layout == "compact" {
 				status = "W"
 			} else {
@@ -306,7 +324,10 @@ func (m Model) renderProgress() string {
 		return ""
 	}
 
-	elapsed := time.Since(m.session.StartTime)
+	elapsed := time.Since(m.session.StartTime) - m.session.TotalPaused
+	if m.session.IsPaused {
+		elapsed -= time.Since(m.session.PausedAt)
+	}
 	currentDuration := m.session.GetCurrentDuration()
 	remaining := max(currentDuration-elapsed, 0)
 
@@ -406,17 +427,18 @@ func (m Model) renderHelp() string {
 		return ""
 	case "compact":
 		if m.width >= 25 {
-			return helpStyle.Render("w:Work b:Break c:Config e:End q:Quit")
+			return helpStyle.Render("w:Work p:Pause b:Break c:Config e:End q:Quit")
 		}
-		return helpStyle.Render("w/b/c/e/q")
+		return helpStyle.Render("w/p/b/c/e/q")
 	case "medium":
 		if m.width >= 45 {
-			return helpStyle.Render("Controls: w-Work b-Break c-Config e-End q-Quit")
+			return helpStyle.Render("Controls: w-Work p-Pause b-Break c-Config e-End q-Quit")
 		}
-		return helpStyle.Render("w:Work b:Break c:Config e:End q:Quit")
+		return helpStyle.Render("w:Work p:Pause b:Break c:Config e:End q:Quit")
 	default:
 		return helpStyle.Render(`🎮 Controls:
 		w - Start Work Session
+		p - Pause Timer
 		b - Start Break
 		c - Configure Times
 		e - End Current Session
